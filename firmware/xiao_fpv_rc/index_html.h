@@ -1,0 +1,837 @@
+// Generated from web/index.html by tools/embed_html.py - edit the .html, then run the script
+#pragma once
+
+const char INDEX_HTML[] = R"HTML_PAGE(<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<title>FPV Car</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">🏎</text></svg>'>
+<style>
+  :root {
+    --buttonReady: crimson;
+    --buttonActive: ForestGreen;
+    --buttonText: white;
+    --pageText: WhiteSmoke;
+    --pageBackground: #181818;
+    --inputBackground: WhiteSmoke;
+    --inputText: navy;
+    --itemBorder: silver;
+    --bodySize: 1rem;
+    --buttonSize: var(--bodySize);
+    --buttonDbl: calc(var(--buttonSize) * 2);
+    --iconSize: calc(var(--buttonSize) * 1.6);
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    color: var(--pageText);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  /* ---------- video ---------- */
+  #view {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    touch-action: none;
+  }
+  #stream { display: block; background: #111; }
+  #noSignal {
+    position: absolute;
+    color: #aaa;
+    font-size: 1.1rem;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  /* ---------- top bar ---------- */
+  .RCbuttonFmt {
+    position: fixed;
+    left: 4px;
+    top: 4px;
+    width: var(--buttonDbl);
+    height: var(--buttonDbl);
+    border-radius: 15%;
+    background: var(--buttonReady);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--buttonSize);
+    cursor: pointer;
+    z-index: 3;
+  }
+  .RCbuttonFmt.RCon { background: var(--buttonActive); }
+  #status {
+    position: fixed;
+    left: calc(var(--buttonDbl) + 12px);
+    top: 4px;
+    height: var(--buttonDbl);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 2px #000;
+    pointer-events: none;
+    z-index: 3;
+  }
+  #linkDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--buttonReady);
+    box-shadow: 0 0 4px #000;
+  }
+  #linkDot.on { background: #3c3; }
+  #iconBar {
+    position: fixed;
+    right: 4px;
+    top: 4px;
+    display: flex;
+    gap: 6px;
+    z-index: 3;
+  }
+  .iconSize {
+    width: var(--iconSize);
+    height: var(--iconSize);
+    border-radius: 50%;
+    background: var(--buttonReady);
+    color: var(--buttonText);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--iconSize) * 0.62);
+    line-height: 1;
+    cursor: pointer;
+  }
+  .iconSize:active { background: var(--buttonActive); }
+
+  /* ===== virtual joysticks ===== */
+  #RCdisplay {
+    --joySize: clamp(96px, 34vmin, 200px);
+    --knobSize: calc(var(--joySize) * 0.40);
+    --joyGap: clamp(8px, 3vmin, 24px);
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #RCdisplay * { -webkit-tap-highlight-color: transparent; }
+  .hidden { display: none !important; }
+
+  .joyBase {
+    position: fixed;
+    bottom: var(--joyGap);
+    width: var(--joySize);
+    height: var(--joySize);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(20,20,20,0.25) 0%, rgba(20,20,20,0.55) 100%);
+    border: 2px solid rgba(255,255,255,0.55);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), inset 0 0 12px rgba(0,0,0,0.5);
+    touch-action: none;
+    cursor: grab;
+    z-index: 2;
+  }
+  .joyLeft  { left:  var(--joyGap); }
+  .joyRight { right: var(--joyGap); }
+  .joyAxis {
+    position: absolute;
+    background: rgba(255,255,255,0.28);
+    border-radius: 3px;
+    pointer-events: none;
+  }
+  .joyAxisH { left: 12%; right: 12%; top: calc(50% - 2px); height: 4px; }
+  .joyAxisV { top: 12%; bottom: 12%; left: calc(50% - 2px); width: 4px; }
+  .joyCenter {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.8);
+    pointer-events: none;
+  }
+  .joyKnob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--knobSize);
+    height: var(--knobSize);
+    margin: calc(var(--knobSize) / -2) 0 0 calc(var(--knobSize) / -2);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.95), rgba(190,190,190,0.85));
+    border: 2px solid rgba(255,255,255,0.9);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    pointer-events: none;
+    transition: transform 0.12s ease-out;
+    will-change: transform;
+  }
+  .joyKnob::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: rgba(60,60,60,0.8);
+  }
+  .joyBase.joyActive { cursor: grabbing; border-color: var(--buttonActive); }
+  .joyBase.joyActive .joyKnob { transition: none; }
+  .joyLabel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -1.4rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 2px #000;
+    pointer-events: none;
+  }
+  .joyBtns {
+    position: fixed;
+    left: 50%;
+    bottom: var(--joyGap);
+    transform: translateX(-50%);
+    display: flex;
+    gap: calc(var(--joyGap) * 0.8);
+    z-index: 2;
+  }
+  .joyBtn {
+    position: relative;
+    width: calc(var(--joySize) * 0.36);
+    height: calc(var(--joySize) * 0.36);
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--joySize) * 0.17);
+    background: rgba(20,20,20,0.55);
+    border: 2px solid rgba(255,255,255,0.55);
+    color: #fff;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .joyLights { filter: grayscale(1) brightness(0.8); }
+  .joySwap:active { border-color: var(--buttonActive); }
+  .joyLights.lightsOn {
+    background: rgba(255,240,180,0.35);
+    border-color: #fff6c8;
+    box-shadow: 0 0 16px 4px rgba(255,245,200,0.7);
+    filter: none;
+  }
+
+  /* ---------- settings panel ---------- */
+  #settings {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 100vw);
+    background: rgba(24,24,24,0.97);
+    border-left: 1px solid #333;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    z-index: 10;
+    padding: 0 14px 24px;
+    box-sizing: border-box;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  #settings h2 {
+    position: sticky;
+    top: 0;
+    margin: 0 -14px 6px;
+    padding: 12px 14px;
+    font-size: 1.1rem;
+    background: var(--pageBackground);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #333;
+  }
+  #settings h3 {
+    margin: 18px 0 6px;
+    font-size: 0.95rem;
+    color: #f0a0a8;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 0.9rem;
+  }
+  .row label { flex: 1; }
+  .row small { display: block; color: #999; font-size: 0.75rem; }
+  .row input[type=number], .row input[type=text], .row input[type=password], .row select {
+    width: 9em;
+    padding: 5px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--itemBorder);
+    background: var(--inputBackground);
+    color: var(--inputText);
+    font-size: 0.9rem;
+  }
+  .row input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--buttonActive); }
+  .row input[type=range] { width: 100%; accent-color: var(--buttonActive); }
+  .rangeRow { display: block; }
+  .rangeRow .top { display: flex; justify-content: space-between; align-items: center; }
+  .btnRow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .btn {
+    flex: 1;
+    min-width: 8em;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--buttonReady);
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .btn.ok { background: var(--buttonActive); }
+  .btn.grey { background: #555; }
+  #info { font-size: 0.8rem; color: #aaa; line-height: 1.5; }
+  #toast {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    border: 1px solid #555;
+    padding: 12px 18px;
+    border-radius: 8px;
+    z-index: 20;
+    font-size: 0.95rem;
+    pointer-events: none;
+  }
+  #otaProgress { width: 100%; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div id="view">
+  <canvas id="stream" width="480" height="320"></canvas>
+  <div id="noSignal">Подключение к машинке…</div>
+</div>
+
+<!-- RC controls on / off -->
+<div class="RCbuttonFmt RCon" id="RCcontrols" title="Управление вкл / выкл">🎮</div>
+<div id="status"><span id="linkDot"></span><span id="fpsText"></span></div>
+
+<div id="iconBar">
+  <div class="iconSize" id="saveImage" title="Снимок">v</div>
+  <div class="iconSize" id="rotate" title="Повернуть изображение на 180°">@</div>
+  <div class="iconSize" id="fullScreen" title="Во весь экран">&#9634;</div>
+  <div class="iconSize" id="openSettings" title="Настройки">&#9881;</div>
+</div>
+
+<div id="RCdisplay">
+  <!-- left joystick = steering (left / right only) -->
+  <div class="joyBase joyLeft" id="joySteer" title="Руль">
+    <div class="joyAxis joyAxisH"></div>
+    <div class="joyCenter"></div>
+    <div class="joyKnob"></div>
+    <div class="joyLabel" id="joySteerVal">0</div>
+  </div>
+  <div class="joyBtns">
+    <div class="joyBtn joySwap" id="joySwap" title="Поменять джойстики местами">⇄</div>
+    <div class="joyBtn joyLights" id="joyLights" title="Фары">💡</div>
+  </div>
+  <!-- right joystick = throttle (up forward, down reverse) -->
+  <div class="joyBase joyRight" id="joyMotor" title="Газ / задний ход">
+    <div class="joyAxis joyAxisV"></div>
+    <div class="joyCenter"></div>
+    <div class="joyKnob"></div>
+    <div class="joyLabel" id="joyMotorVal">0%</div>
+  </div>
+</div>
+
+<div id="settings" class="hidden">
+  <h2>Настройки <span class="iconSize" id="closeSettings" title="Закрыть">×</span></h2>
+  <div id="info"></div>
+
+  <h3>Руль</h3>
+  <div class="row rangeRow"><div class="top"><label>До упора влево</label><input type="number" data-k="steerLeft" min="0" max="180"></div><input type="range" data-k="steerLeft" min="0" max="180"></div>
+  <div class="row rangeRow"><div class="top"><label>Центр (прямо)</label><input type="number" data-k="steerCenter" min="0" max="180"></div><input type="range" data-k="steerCenter" min="0" max="180"></div>
+  <div class="row rangeRow"><div class="top"><label>До упора вправо</label><input type="number" data-k="steerRight" min="0" max="180"></div><input type="range" data-k="steerRight" min="0" max="180"></div>
+  <div class="row"><label><small>Пока двигаешь значение, сервопривод встаёт в это положение. Руль поворачивает не туда — поменяй местами «влево» и «вправо».</small></label></div>
+
+  <h3>Мотор</h3>
+  <div class="row"><label>Инверсия (вперёд ↔ назад)</label><input type="checkbox" data-k="motorInvert"></div>
+  <div class="row"><label>Минимальный газ, %<small>с которого мотор трогается</small></label><input type="number" data-k="minDuty" min="0" max="100"></div>
+  <div class="row"><label>Максимальный газ, %</label><input type="number" data-k="maxDuty" min="0" max="100"></div>
+  <div class="row"><label>Плавный разгон, мс<small>0 — выключен</small></label><input type="number" data-k="rampMs" min="0" max="3000" step="50"></div>
+  <div class="row"><label>Частота ШИМ, Гц</label><input type="number" data-k="pwmFreq" min="100" max="20000" step="100"></div>
+  <div class="row"><label>Остановка при потере связи, мс</label><input type="number" data-k="failsafeMs" min="200" max="5000" step="100"></div>
+
+  <h3>Камера</h3>
+  <div class="row"><label>Разрешение</label>
+    <select data-k="frameSize">
+      <option value="1">160×120 (QQVGA)</option>
+      <option value="4">240×176 (HQVGA)</option>
+      <option value="6">320×240 (QVGA)</option>
+      <option value="8">400×296 (CIF)</option>
+      <option value="9">480×320 (HVGA)</option>
+      <option value="10">640×480 (VGA)</option>
+      <option value="11">800×600 (SVGA)</option>
+    </select></div>
+  <div class="row"><label>Сжатие (quality)<small>8 — лучше картинка, 63 — меньше кадр</small></label><input type="number" data-k="quality" min="8" max="63"></div>
+  <div class="row"><label>Максимум кадров/с</label><input type="number" data-k="maxFps" min="1" max="60"></div>
+  <div class="row"><label>Повернуть на 180°</label><input type="checkbox" data-k="camFlip"></div>
+  <div class="row"><label>Зеркально</label><input type="checkbox" data-k="camMirror"></div>
+
+  <h3>Wi-Fi</h3>
+  <div class="row"><label>Мощность передатчика</label>
+    <select data-k="txPower">
+      <option value="0">Максимум</option>
+      <option value="1">15 dBm</option>
+      <option value="2">11 dBm</option>
+      <option value="3">8.5 dBm</option>
+    </select></div>
+  <div class="row"><label>Сеть машинки<small>после перезагрузки</small></label><input type="text" data-k="apSsid" maxlength="32"></div>
+  <div class="row"><label>Пароль сети машинки<small>8+ символов, пусто — без пароля</small></label><input type="text" data-k="apPass" maxlength="64"></div>
+  <div class="row"><label>Канал Wi-Fi</label><input type="number" data-k="apChannel" min="1" max="13"></div>
+  <div class="row"><label>Домашняя сеть<small>пусто — только своя сеть машинки (меньше задержка)</small></label><input type="text" data-k="staSsid" maxlength="32"></div>
+  <div class="row"><label>Пароль домашней сети</label><input type="password" data-k="staPass" maxlength="64"></div>
+
+  <h3>Пины<small style="color:#999;font-weight:normal"> — после перезагрузки</small></h3>
+  <div class="row"><label>Сервопривод руля</label><input type="number" data-k="servoPin" min="-1" max="48"></div>
+  <div class="row"><label>Драйвер, вход A (вперёд)</label><input type="number" data-k="motorAPin" min="-1" max="48"></div>
+  <div class="row"><label>Драйвер, вход B (назад)</label><input type="number" data-k="motorBPin" min="-1" max="48"></div>
+  <div class="row"><label>Фары</label><input type="number" data-k="lightsPin" min="-1" max="48"></div>
+
+  <div class="btnRow">
+    <button class="btn ok" id="saveBtn">Сохранить</button>
+    <button class="btn grey" id="rebootBtn">Перезагрузить</button>
+  </div>
+
+  <h3>Обновление прошивки</h3>
+  <div class="row"><input type="file" id="otaFile" accept=".bin"></div>
+  <div class="btnRow"><button class="btn" id="otaBtn">Загрузить прошивку</button></div>
+  <progress id="otaProgress" class="hidden" max="100" value="0"></progress>
+
+  <div class="btnRow"><button class="btn grey" id="resetBtn">Сброс к заводским настройкам</button></div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+const host = location.host;
+
+/* ---------------- helpers ---------------- */
+let toastTimer = null;
+function toast(msg, ms = 1800) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+}
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+/* ---------------- websocket: video + control ---------------- */
+let ws = null;
+let wsOpen = false;
+const canvas = $('#stream');
+const ctx = canvas.getContext('2d');
+let decoding = false;
+let pendingFrame = null;
+let framesThisSec = 0, bytesThisSec = 0, fps = 0, kbPerFrame = 0;
+let lastFrameTime = 0;
+
+function connect() {
+  ws = new WebSocket('ws://' + host + '/ws');
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => {
+    wsOpen = true;
+    $('#linkDot').classList.add('on');
+    rcLastSent.S = rcLastSent.T = null;
+    if (RCmode) { rcSend('S', 0, true); rcSend('T', 0, true); }
+  };
+  ws.onclose = () => {
+    wsOpen = false;
+    $('#linkDot').classList.remove('on');
+    $('#noSignal').textContent = 'Нет связи с машинкой, переподключение…';
+    $('#noSignal').classList.remove('hidden');
+    joyResetAll();
+    setTimeout(connect, 600);
+  };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  ws.onmessage = (ev) => {
+    if (typeof ev.data === 'string') return;
+    // confirm at once so the car can capture the next frame while this one is decoded
+    wsSend('A');
+    framesThisSec++;
+    bytesThisSec += ev.data.byteLength;
+    lastFrameTime = performance.now();
+    if (decoding) { pendingFrame = ev.data; return; } // keep only the newest
+    drawFrame(ev.data);
+  };
+}
+
+function wsSend(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) { ws.send(msg); return true; }
+  return false;
+}
+
+async function drawFrame(buf) {
+  decoding = true;
+  try {
+    const blob = new Blob([buf], {type: 'image/jpeg'});
+    let img;
+    if (window.createImageBitmap) img = await createImageBitmap(blob);
+    else img = await loadImage(blob);
+    if (canvas.width !== img.width || canvas.height !== img.height) {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      fitView();
+    }
+    ctx.drawImage(img, 0, 0);
+    if (img.close) img.close();
+    $('#noSignal').classList.add('hidden');
+  } catch (e) { /* broken frame: skip */ }
+  decoding = false;
+  if (pendingFrame) {
+    const next = pendingFrame;
+    pendingFrame = null;
+    drawFrame(next);
+  }
+}
+
+function loadImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const im = new Image();
+    im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
+    im.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    im.src = url;
+  });
+}
+
+function fitView() {
+  // largest size that fits the screen, keeping aspect ratio
+  const w = canvas.width || 4, h = canvas.height || 3;
+  const s = Math.min(window.innerWidth / w, window.innerHeight / h);
+  canvas.style.width = Math.floor(w * s) + 'px';
+  canvas.style.height = Math.floor(h * s) + 'px';
+}
+window.addEventListener('resize', fitView);
+
+setInterval(() => {
+  fps = framesThisSec;
+  kbPerFrame = framesThisSec ? bytesThisSec / framesThisSec / 1024 : 0;
+  framesThisSec = bytesThisSec = 0;
+  $('#fpsText').textContent = wsOpen ? fps + ' кадр/с · ' + kbPerFrame.toFixed(1) + ' КБ' : '';
+  if (wsOpen && performance.now() - lastFrameTime > 2000) {
+    $('#noSignal').textContent = 'Нет видео';
+    $('#noSignal').classList.remove('hidden');
+  }
+}, 1000);
+
+/* ---------------- RC controls ---------------- */
+let RCmode = true;
+const waitTime = 20;              // ms between joystick updates
+const rcPending = {S: null, T: null};
+const rcLastSent = {S: null, T: null};
+let rcTimer = null;
+let rcLastTime = 0;
+
+function rcSend(cmd, val, immediate = false) {
+  if (!RCmode) return;
+  rcPending[cmd] = val;
+  const wait = waitTime - (Date.now() - rcLastTime);
+  if (immediate || wait <= 0) rcFlush();
+  else if (!rcTimer) rcTimer = setTimeout(rcFlush, wait);
+}
+
+function rcFlush() {
+  if (rcTimer) { clearTimeout(rcTimer); rcTimer = null; }
+  rcLastTime = Date.now();
+  for (const cmd of ['S', 'T']) {
+    const val = rcPending[cmd];
+    if (val !== null && val !== rcLastSent[cmd]) {
+      if (wsSend(cmd + val)) rcLastSent[cmd] = val;
+    }
+  }
+}
+
+// keepalive; while a stick is held its value is repeated, so the car
+// carries on straight away after a short WiFi drop
+setInterval(() => {
+  if (!wsOpen) return;
+  let sent = false;
+  if (RCmode && rcLastSent.T) { wsSend('T' + rcLastSent.T); sent = true; }
+  if (RCmode && rcLastSent.S) { wsSend('S' + rcLastSent.S); sent = true; }
+  if (!sent) wsSend('H');
+}, 300);
+
+let joySteer = null, joyMotor = null, lightsOn = false;
+const joyDeadZone = 0.06;
+
+function makeJoystick(baseId, axis, onChange) {
+  // axis 'x' = left / right only, 'y' = up / down only
+  const base = $('#' + baseId);
+  const knob = base.querySelector('.joyKnob');
+  let pid = null;
+  const travel = () => Math.max(1, (base.clientWidth - knob.offsetWidth) / 2);
+  const setKnob = (v) => {
+    const d = v * travel();
+    knob.style.transform = (axis == 'x') ? 'translate(' + d + 'px,0)' : 'translate(0,' + (-d) + 'px)';
+  };
+  const update = (e) => {
+    const r = base.getBoundingClientRect();
+    let v = (axis == 'x') ? (e.clientX - (r.left + r.width / 2)) / travel()
+                          : ((r.top + r.height / 2) - e.clientY) / travel();
+    v = Math.max(-1, Math.min(1, v));
+    if (Math.abs(v) < joyDeadZone) v = 0;
+    setKnob(v);
+    onChange(v);
+  };
+  const release = (e) => {
+    if (pid === null || (e && e.pointerId !== pid)) return;
+    pid = null;
+    base.classList.remove('joyActive');
+    setKnob(0);
+    onChange(0);
+  };
+  base.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pid !== null) return;
+    pid = e.pointerId;
+    try { base.setPointerCapture(pid); } catch (err) {}
+    base.classList.add('joyActive');
+    update(e);
+  });
+  base.addEventListener('pointermove', (e) => { if (e.pointerId === pid) { e.preventDefault(); update(e); } });
+  base.addEventListener('pointerup', release);
+  base.addEventListener('pointercancel', release);
+  base.addEventListener('lostpointercapture', release);
+  base.addEventListener('contextmenu', (e) => e.preventDefault());
+  return { reset: () => { pid = null; base.classList.remove('joyActive'); setKnob(0); } };
+}
+
+function onSteer(v) {
+  const pc = Math.round(v * 100);
+  $('#joySteerVal').textContent = pc < 0 ? '◀ ' + (-pc) + '%' : (pc > 0 ? pc + '% ▶' : '0');
+  rcSend('S', pc, pc == 0);
+}
+
+function onThrottle(v) {
+  const pc = Math.round(v * 100);
+  $('#joyMotorVal').textContent = pc + '%';
+  rcSend('T', pc, pc == 0);
+}
+
+function setLightsBtn(on) {
+  lightsOn = on;
+  $('#joyLights').classList.toggle('lightsOn', on);
+}
+
+function joyResetAll() {
+  if (rcTimer) { clearTimeout(rcTimer); rcTimer = null; }
+  rcPending.S = rcPending.T = null;
+  if (joySteer) joySteer.reset();
+  if (joyMotor) joyMotor.reset();
+  $('#joySteerVal').textContent = '0';
+  $('#joyMotorVal').textContent = '0%';
+}
+
+function stopCarNow() {
+  joyResetAll();
+  rcLastSent.S = rcLastSent.T = null;
+  rcSend('S', 0, true);
+  rcSend('T', 0, true);
+}
+
+function setJoySides(swapped) {
+  // false: steering left, throttle right; true: throttle left, steering right
+  $('#joySteer').classList.toggle('joyLeft', !swapped);
+  $('#joySteer').classList.toggle('joyRight', swapped);
+  $('#joyMotor').classList.toggle('joyLeft', swapped);
+  $('#joyMotor').classList.toggle('joyRight', !swapped);
+}
+
+function showRC(on) {
+  if (!on) stopCarNow();
+  RCmode = on;
+  $('#RCdisplay').classList.toggle('hidden', !on);
+  $('#RCcontrols').classList.toggle('RCon', on);
+}
+
+function tapButton(id, fn) {
+  const el = $('#' + id);
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fn(e); });
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function initControls() {
+  joySteer = makeJoystick('joySteer', 'x', onSteer);
+  joyMotor = makeJoystick('joyMotor', 'y', onThrottle);
+  let swapped = lsGet('joySwapped') == '1';
+  setJoySides(swapped);
+  tapButton('joySwap', () => {
+    stopCarNow();
+    swapped = !swapped;
+    setJoySides(swapped);
+    lsSet('joySwapped', swapped ? '1' : '0');
+  });
+  tapButton('joyLights', () => {
+    setLightsBtn(!lightsOn);
+    wsSend('L' + (lightsOn ? 1 : 0));
+  });
+  tapButton('RCcontrols', () => showRC(!RCmode));
+  tapButton('saveImage', saveImage);
+  tapButton('rotate', () => {
+    const v = $('[data-k=camFlip]').checked ? 0 : 1;
+    setSetting('camFlip', v).then(() => fetch('/save'));
+    $('[data-k=camFlip]').checked = !!v;
+  });
+  tapButton('fullScreen', toggleFullscreen);
+  tapButton('openSettings', openSettings);
+  tapButton('closeSettings', () => $('#settings').classList.add('hidden'));
+}
+
+function saveImage() {
+  canvas.toBlob((b) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'fpvcar-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jpg';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, 'image/jpeg', 0.92);
+}
+
+function toggleFullscreen() {
+  const d = document;
+  if (!d.fullscreenElement && !d.webkitFullscreenElement) {
+    const el = d.documentElement;
+    const p = el.requestFullscreen ? el.requestFullscreen() : (el.webkitRequestFullscreen && el.webkitRequestFullscreen());
+    Promise.resolve(p).then(() => {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+    }).catch(() => {});
+  } else {
+    Promise.resolve(d.exitFullscreen ? d.exitFullscreen() : d.webkitExitFullscreen && d.webkitExitFullscreen()).catch(() => {});
+  }
+}
+
+/* ---------------- settings ---------------- */
+let cfg = {};
+
+async function loadConfig() {
+  try {
+    const r = await fetch('/config', {cache: 'no-store'});
+    cfg = await r.json();
+  } catch (e) { return; }
+  $$('[data-k]').forEach((el) => {
+    const v = cfg[el.dataset.k];
+    if (v === undefined) return;
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = v;
+  });
+  setLightsBtn(!!cfg.lights);
+  $('#info').innerHTML = 'Прошивка ' + cfg.version + ' · камера ' + cfg.camera +
+    '<br>' + (cfg.mode === 'sta' ? 'Домашняя сеть, сигнал ' + cfg.rssi + ' dBm' : 'Своя сеть машинки') + ' · ' + cfg.ip;
+}
+
+function openSettings() {
+  loadConfig();
+  $('#settings').classList.remove('hidden');
+}
+
+async function setSetting(k, v) {
+  try {
+    const r = await fetch('/set?k=' + encodeURIComponent(k) + '&v=' + encodeURIComponent(v));
+    const j = await r.json();
+    if (!j.ok) { toast('Недопустимое значение'); loadConfig(); return false; }
+    if (j.reboot) toast('Применится после перезагрузки');
+    cfg[k] = v;
+    return true;
+  } catch (e) { toast('Нет связи'); return false; }
+}
+
+function initSettings() {
+  let rangeTimer = null;
+  $$('#settings [data-k]').forEach((el) => {
+    const k = el.dataset.k;
+    const sync = (val) => $$('[data-k=' + k + ']').forEach((o) => { if (o !== el && o.type !== 'checkbox') o.value = val; });
+    if (el.type === 'range') {
+      // live servo preview while sliding (throttled)
+      el.addEventListener('input', () => {
+        sync(el.value);
+        clearTimeout(rangeTimer);
+        rangeTimer = setTimeout(() => setSetting(k, el.value), 60);
+      });
+    } else {
+      el.addEventListener('change', () => {
+        const v = el.type === 'checkbox' ? (el.checked ? 1 : 0) : el.value;
+        sync(v);
+        setSetting(k, v);
+      });
+    }
+  });
+  $('#saveBtn').addEventListener('click', async () => {
+    try { await fetch('/save'); toast('Сохранено'); } catch (e) { toast('Нет связи'); }
+  });
+  $('#rebootBtn').addEventListener('click', async () => {
+    if (!confirm('Перезагрузить машинку? Несохранённые изменения пропадут.')) return;
+    try { await fetch('/reboot'); } catch (e) {}
+    toast('Перезагрузка…', 4000);
+  });
+  $('#resetBtn').addEventListener('click', async () => {
+    if (!confirm('Сбросить все настройки к заводским?')) return;
+    try { await fetch('/reset'); } catch (e) {}
+    toast('Сброс, перезагрузка…', 4000);
+  });
+  $('#otaBtn').addEventListener('click', () => {
+    const f = $('#otaFile').files[0];
+    if (!f) { toast('Выбери файл .bin'); return; }
+    const p = $('#otaProgress');
+    p.classList.remove('hidden');
+    stopCarNow();
+    const x = new XMLHttpRequest();
+    x.open('POST', '/update');
+    x.upload.onprogress = (e) => { if (e.lengthComputable) p.value = e.loaded / e.total * 100; };
+    x.onload = () => toast(x.status === 200 ? 'Прошивка загружена, перезагрузка…' : 'Ошибка: ' + x.responseText, 5000);
+    x.onerror = () => toast('Ошибка загрузки', 4000);
+    x.send(f);
+  });
+}
+
+/* ---------------- start ---------------- */
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopCarNow(); });
+initControls();
+initSettings();
+fitView();
+loadConfig();
+connect();
+</script>
+</body>
+</html>
+)HTML_PAGE";
