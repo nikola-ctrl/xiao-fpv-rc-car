@@ -458,6 +458,14 @@ void appSpecificWsHandler(const char* wsMsg) {
           // browser keepalive heartbeat
           heartBeatDone = true;
         break;
+        case 'V':
+          // RC mod: live view over websocket on / off
+          wsVideoControl(controlVal != 0);
+        break;
+        case 'A':
+          // RC mod: browser received video frame
+          wsVideoAck();
+        break;
         case 'K': 
           // kill websocket connection
           killSocket();

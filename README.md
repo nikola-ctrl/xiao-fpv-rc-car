@@ -19,6 +19,8 @@
   - при отпускании джойстики возвращаются в центр: руль выравнивается, мотор останавливается.
 - ⇄ **Кнопка смены джойстиков местами** (газ слева, руль справа); выбор запоминается в браузере телефона.
 - 💡 **Кнопка фар**.
+- ⏺ **Кнопка записи на SD-карту** прямо на экране трансляции — записывать лучшие моменты, не выходя в меню.
+- 📶 **Видео с малой задержкой**: кадры идут по WebSocket по одному, с подтверждением от телефона, всегда самый свежий кадр.
 - Джойстики появляются **автоматически** при открытии трансляции.
 - ⚙️ **Настройка руля**: крайние точки влево/вправо и центр задаются в градусах, сервопривод сразу встаёт в положение, пока вводишь число; инверсия руля — обменом значений «лево/право».
 - 🔁 **Инверсия мотора** галочкой: перепутанные провода мотора не нужно перепаивать.
@@ -149,6 +151,12 @@ GND общий у всех: XIAO, драйвер, сервопривод, све
 
 ## Меньше задержка видео
 
+Что сделано в прошивке:
+- живое видео идёт по WebSocket: следующий кадр отправляется только после того, как телефон получил предыдущий, устаревший кадр выбрасывается — кадры не копятся в очереди Wi-Fi;
+- камера работает с 2 буферами вместо 4 (с 4 буферами драйвер отдавал кадр, отстающий на 2–3 кадра);
+- энергосбережение Wi-Fi отключено.
+
+Что можно настроить:
 - **Разрешение** HVGA (480×320) или VGA (640×480) — меньше кадр, быстрее доходит.
 - **Quality** 15–20 вместо 12 (больше число — сильнее сжатие, кадр меньше).
 - **FPS** до 50 (ползунок в настройках камеры). OV2640 реально даёт ~40–50 кадров/с только при CIF (400×296) и меньше; при HVGA/VGA предел ~25.
@@ -167,9 +175,11 @@ GND общий у всех: XIAO, драйвер, сервопривод, све
 - `src/prefs.cpp` — недостающие параметры автоматически добавляются в существующий `configs.txt`.
 - `src/webServer.cpp`, `src/appGlobals.h` — отдельный ETag веб-страниц (`WEB_ETAG`), `GITHUB_PATH` указывает на этот репозиторий, отключено энергосбережение Wi-Fi (`NO_WIFI_SLEEP`).
 
+- `src/streamServer.cpp` — живое видео по WebSocket с подтверждением кадров (команды `V1`/`V0`, `A`); `src/mjpeg2sd.cpp` — 2 буфера камеры вместо 4.
+
 **Веб-интерфейс** (`data/MJPEG2SD.htm`)
-- Ползунки руля и газа заменены двумя экранными джойстиками с мультитачем, кнопками фар и смены сторон.
-- Управление включается автоматически при открытии трансляции.
+- Ползунки руля и газа заменены двумя крупными экранными джойстиками с мультитачем, кнопками фар, записи и смены сторон.
+- Управление включается автоматически при открытии трансляции, живое видео принимается по WebSocket.
 
 ## Лицензия и авторство
 
@@ -184,7 +194,8 @@ GND общий у всех: XIAO, драйвер, сервопривод, све
 Hot Wheels–size (1:64) FPV RC car controlled from a phone browser over Wi-Fi, based on
 [s60sc/ESP32-CAM_MJPEG2SD](https://github.com/s60sc/ESP32-CAM_MJPEG2SD) v10.9.6 for the **Seeed XIAO ESP32S3 Sense**.
 
-- Two on-screen multitouch joysticks (steering / throttle + reverse), lights button and a button to swap joystick sides; shown automatically when the live stream opens.
+- Two on-screen multitouch joysticks (steering / throttle + reverse), lights, record-to-SD and joystick swap buttons; shown automatically when the live stream opens.
+- Low-latency live view: JPEG frames over the WebSocket with per-frame acknowledgement, camera uses 2 frame buffers instead of 4.
 - Steering servo end points and centre, motor direction invert, motor soft start, Wi-Fi TX power — all in *Edit Config → RC Config*.
 - Failsafe: motor stops and steering centres when the browser connection is lost.
 - Pins: D0 servo, D1/D2 MX612E INA/INB, D3 lights. Do not use D8–D10 (SD card).

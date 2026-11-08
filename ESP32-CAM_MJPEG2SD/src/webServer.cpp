@@ -457,12 +457,12 @@ bool wsAsyncSendJson(const char* dataType, const char* wsData) {
   return wsAsyncSendText(wsJson);
 }
 
-void wsAsyncSendBinary(uint8_t* data, size_t len) {
+bool wsAsyncSendBinary(uint8_t* data, size_t len) {
   // websockets send binary function, used for app specific features
   if (checkWsSocketStatus()) {
     if (data == NULL || len == 0) {
       LOG_WRN("Invalid data or length: data=%p, len=%u", data, len);
-      return;
+      return false;
     }
     // send if connection active
     httpd_ws_frame_t wsPkt;
@@ -472,7 +472,9 @@ void wsAsyncSendBinary(uint8_t* data, size_t len) {
     wsPkt.len = len;
     esp_err_t ret = httpd_ws_send_frame_async(httpServer, fdWs, &wsPkt);
     if (ret != ESP_OK) LOG_WRN("websocket send failed with %s", esp_err_to_name(ret));
+    return ret == ESP_OK;
   } // else ignore
+  return false;
 }
 
 static esp_err_t wsHandler(httpd_req_t *req) {

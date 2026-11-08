@@ -824,7 +824,8 @@
 
       /* ===== RC mod: virtual joysticks ===== */
       #RCdisplay {
-        --joySize: clamp(96px, 34vmin, 200px);
+        --joySize: clamp(150px, 56vmin, 340px); /* RC mod: ~1.7x larger joysticks */
+        --btnSize: clamp(44px, 12vmin, 72px);   /* centre buttons keep their size */
         --knobSize: calc(var(--joySize) * 0.40);
         --joyGap: clamp(8px, 3vmin, 24px);
         -webkit-user-select: none;
@@ -930,15 +931,15 @@
 
       .joyBtn {
         position: relative;
-        width: calc(var(--joySize) * 0.36);
-        height: calc(var(--joySize) * 0.36);
+        width: var(--btnSize);
+        height: var(--btnSize);
         min-width: 44px;
         min-height: 44px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: calc(var(--joySize) * 0.17);
+        font-size: calc(var(--btnSize) * 0.47);
         background: rgba(20,20,20,0.55);
         border: 2px solid rgba(255,255,255,0.55);
         color: #fff;
@@ -946,6 +947,13 @@
         cursor: pointer;
       }
       .joyLights { filter: grayscale(1) brightness(0.8); }
+      .joyRec { color: crimson; font-size: calc(var(--btnSize) * 0.55); }
+      .joyRec.recOn {
+        background: rgba(220,20,60,0.45);
+        border-color: #ff6b81;
+        box-shadow: 0 0 16px 4px rgba(220,20,60,0.7);
+        color: #fff;
+      }
       .joySwap:active { border-color: var(--buttonActive); }
       .joyLights.lightsOn {
         background: rgba(255,240,180,0.35);
@@ -1615,6 +1623,7 @@
               <div class="joyBtns">
                 <div class="joyBtn joySwap" id="joySwap" title="Swap joysticks left / right">⇄</div>
                 <div class="joyBtn joyLights" id="joyLights" title="Lights on / off">💡</div>
+                <div class="joyBtn joyRec" id="joyRec" title="Record to SD card on / off">⏺</div>
               </div>
               <!-- RC mod: right joystick = throttle (up forward, down reverse) -->
               <div class="joyBase joyRight" id="joyMotor" title="Throttle / reverse">
@@ -2164,6 +2173,7 @@
           recordButton.classList.add("active");
           recordButton.innerHTML = "▢&nbsp;Stop Recording";
         }
+        $('#joyRec').classList.add('recOn'); // RC mod
         if (isHidden(recordingIndicator)) {
           show(recordingIndicator);
           recordingIndicator.classList.add("blinking");
@@ -2173,6 +2183,7 @@
       function deactivateRecordButton() {
         recordButton.classList.remove("active");
         recordButton.innerHTML = "➤&nbsp;Start Recording";
+        $('#joyRec').classList.remove('recOn'); // RC mod
         recordingIndicator.classList.remove("blinking");
         hide(recordingIndicator);
       }
@@ -2190,11 +2201,10 @@
         streamButton.innerHTML = "▢&nbsp;Stop Stream";
         streamButton.classList.add('blinking');
         showRC ? show($('#RCenable')) : hide($('#RCenable'));
-        if (await checkTask('/sustain?stream=0')) {
-          view.src = webServer + '/sustain?stream=0';
-          showView(false);
-          autoStartRC(); // RC mod: show joysticks with live stream
-        } else deactivateStreamButton();
+        // RC mod: live view over websocket, frame by frame with acknowledgement (low latency)
+        startWsVideo();
+        showView(false);
+        autoStartRC(); // RC mod: show joysticks with live stream
       }
 
       function deactivateStreamButton(sendStop = true) {
@@ -2206,6 +2216,7 @@
       }
 
       async function stopAll(caller, sendStop = true) {
+        stopWsVideo(); // RC mod
         closeMic(wsInd);
         deactivateButton($('#micRem'));
         closeSpkr(wsInd);
@@ -2688,6 +2699,15 @@
           if (RCmode) wsAuxSend("L" + (lightsOn ? 1 : 0), wsInd);
         });
         lights.addEventListener('click', (e) => e.stopPropagation());
+        // record button: same as Start / Stop Recording in the menu
+        const rec = $('#joyRec');
+        rec.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          recordButton.click();
+        });
+        rec.addEventListener('click', (e) => e.stopPropagation());
+        rec.addEventListener('contextmenu', (e) => e.preventDefault());
         lights.addEventListener('contextmenu', (e) => e.preventDefault());
       }
 
@@ -2730,7 +2750,69 @@
 
       function processBuffer(bufferData) {
         // app specific processing of buffer received from web socket
-        outputSpkr(bufferData); // ArrayBuffer containing PCM 16kHz audio data
+        const b = new Uint8Array(bufferData, 0, Math.min(2, bufferData.byteLength));
+        if (b.length == 2 && b[0] == 0xFF && b[1] == 0xD8) wsVideoFrame(bufferData); // RC mod: JPEG frame
+        else outputSpkr(bufferData); // ArrayBuffer containing PCM 16kHz audio data
+      }
+
+      /*---- RC mod: live view over websocket ----*/
+      // The camera sends the next frame only after this page acknowledges the previous one,
+      // so frames never pile up on WiFi and the picture is always the freshest available.
+      let wsVideoActive = false;
+      let wsVideoBusy = false;
+      let wsVideoPending = null;
+      let wsVideoUrl = null;
+      let wsVideoLastFrame = 0;
+      let wsVideoWatchdog = null;
+
+      function startWsVideo() {
+        wsVideoActive = true;
+        wsVideoPending = null;
+        wsVideoLastFrame = Date.now();
+        sendWsMsg('V1', 0);
+        if (!wsVideoWatchdog) wsVideoWatchdog = setInterval(() => {
+          // restart video if frames stopped, eg after websocket reconnect
+          if (wsVideoActive && Date.now() - wsVideoLastFrame > 1500) {
+            wsVideoLastFrame = Date.now();
+            sendWsMsg('V1', 0);
+          }
+        }, 500);
+      }
+
+      function stopWsVideo() {
+        if (!wsVideoActive) return;
+        wsVideoActive = false;
+        wsVideoPending = null;
+        if (wsVideoWatchdog) { clearInterval(wsVideoWatchdog); wsVideoWatchdog = null; }
+        try { sendWsMsg('V0', 0); } catch (e) {}
+        view.removeAttribute('src');
+        if (wsVideoUrl) { URL.revokeObjectURL(wsVideoUrl); wsVideoUrl = null; }
+      }
+
+      function wsVideoFrame(buf) {
+        if (!wsVideoActive) return;
+        wsVideoLastFrame = Date.now();
+        // confirm at once so the camera can send the next frame while this one is decoded
+        if (wsSkt[0] && wsSkt[0].readyState === WebSocket.OPEN) wsSkt[0].send('A');
+        if (wsVideoBusy) { wsVideoPending = buf; return; } // keep only the newest
+        showWsVideoFrame(buf);
+      }
+
+      function showWsVideoFrame(buf) {
+        wsVideoBusy = true;
+        const url = URL.createObjectURL(new Blob([buf], {type: 'image/jpeg'}));
+        const prevUrl = wsVideoUrl;
+        wsVideoUrl = url;
+        view.src = url;
+        view.decode().catch(() => {}).finally(() => {
+          if (prevUrl) URL.revokeObjectURL(prevUrl);
+          wsVideoBusy = false;
+          if (wsVideoPending && wsVideoActive) {
+            const next = wsVideoPending;
+            wsVideoPending = null;
+            showWsVideoFrame(next);
+          }
+        });
       }
 
       function customWsMsg(data) {

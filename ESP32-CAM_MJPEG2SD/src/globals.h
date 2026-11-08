@@ -220,7 +220,7 @@ bool urlEncode(const char* inVal, char* encoded, size_t maxSize);
 uint32_t usePeripheral(const byte pinNum, const uint32_t receivedData);
 bool utilsStartup();
 esp_sleep_wakeup_cause_t wakeupResetReason();
-void wsAsyncSendBinary(uint8_t* data, size_t len);
+bool wsAsyncSendBinary(uint8_t* data, size_t len);
 bool wsAsyncSendJson(const char* dataType, const char* wsData);
 bool wsAsyncSendText(const char* wsData);
 // unified networking helpers (WiFi or Ethernet)

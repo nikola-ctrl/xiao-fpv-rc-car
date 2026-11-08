@@ -22,6 +22,7 @@ bool streamAud = false;
 bool streamSrt = false;
 static bool isStreaming[MAX_STREAMS] = {false};
 size_t streamBufferSize[MAX_STREAMS] = {0};
+uint32_t streamFillMs[MAX_STREAMS] = {0}; // RC mod: when frame was put in stream buffer
 byte* streamBuffer[MAX_STREAMS] = {NULL}; // buffer for stream frame
 static char variable[FILE_NAME_LEN]; 
 static char value[FILE_NAME_LEN];
@@ -255,6 +256,58 @@ static void sustainTask(void* p) {
   vTaskDelete(NULL);
 }
 
+/*---- RC mod: low latency live view over websocket ----*/
+// Frames from stream buffer 0 are sent as binary websocket messages. The next frame is sent
+// only after the browser acknowledges the previous one ('A'), so frames never queue up on
+// WiFi, and a frame that has waited too long in the buffer is dropped for a fresh one.
+
+static volatile bool wsVideoOn = false;
+static volatile bool wsVideoAcked = true;
+static TaskHandle_t wsVideoHandle = NULL;
+
+void wsVideoControl(bool on) {
+  // browser asks to start ('V1') or stop ('V0') websocket video
+  wsVideoOn = on;
+  wsVideoAcked = true;
+  if (wsVideoHandle != NULL) xTaskNotifyGive(wsVideoHandle);
+  LOG_VRB("Websocket video %s", on ? "on" : "off");
+}
+
+void wsVideoAck() {
+  wsVideoAcked = true;
+  if (wsVideoHandle != NULL) xTaskNotifyGive(wsVideoHandle);
+}
+
+static void wsVideoTask(void* p) {
+  uint32_t lastSend = 0;
+  while (true) {
+    if (!wsVideoOn) {
+      ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200));
+      continue;
+    }
+    // wait for browser to confirm previous frame (timeout covers a lost ack)
+    if (!wsVideoAcked && millis() - lastSend < 500) {
+      ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(5));
+      continue;
+    }
+    // buffered frame too old: drop it and wait for the next one
+    uint32_t maxAge = FPS ? 1000 / FPS : 50;
+    if (streamBufferSize[0] && millis() - streamFillMs[0] > maxAge) {
+      streamBufferSize[0] = 0;
+      xSemaphoreTake(frameSemaphore[0], 0);
+    }
+    if (!streamBufferSize[0]) {
+      if (xSemaphoreTake(frameSemaphore[0], pdMS_TO_TICKS(MAX_FRAME_WAIT)) == pdFAIL) continue;
+    }
+    if (!wsVideoOn || !streamBufferSize[0]) continue;
+    wsVideoAcked = false;
+    lastSend = millis();
+    bool ok = wsAsyncSendBinary(streamBuffer[0], streamBufferSize[0]);
+    streamBufferSize[0] = 0; // let capture task refill
+    if (!ok) wsVideoOn = false; // browser gone, it restarts video when it reconnects
+  }
+}
+
 void startSustainTasks() {
   // start httpd sustain tasks
   if (streamVid) numStreams = vidStreams = 2;
@@ -278,6 +331,7 @@ void startSustainTasks() {
     xTaskCreateWithCaps(sustainTask, "sustainTask", SUSTAIN_STACK_SIZE, &sustainReq[i].taskNum, SUSTAIN_PRI, &sustainHandle[i], STACK_MEM); 
   }
   
+  if (wsVideoHandle == NULL) xTaskCreateWithCaps(wsVideoTask, "wsVideoTask", 1024 * 4, NULL, SUSTAIN_PRI, &wsVideoHandle, STACK_MEM); // RC mod
   LOG_INF("Started %d sustain tasks", numStreams);
   debugMemory("startSustainTasks");
 }

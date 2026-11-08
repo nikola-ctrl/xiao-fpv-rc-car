@@ -16,7 +16,8 @@ OV5640 ov5640AF = OV5640();
 #endif
 #endif // INCLUDE_AF
 
-#define FB_CNT 4 // number of frame buffers
+#define FB_CNT 2 // number of frame buffers. RC mod: was 4 - with CAMERA_GRAB_LATEST the driver queues FB_CNT-1 frames
+                 // and returns the oldest, so 4 buffers made the live picture 2-3 frames old
 
 // user parameters set from web
 bool useMotion = true; // whether to use camera for motion detection (with motionDetect.cpp)
@@ -420,6 +421,7 @@ static boolean processFrame() {
     if (!streamBufferSize[i] && streamBuffer[i] != NULL) {
       memcpy(streamBuffer[i], fb->buf, fb->len);
       streamBufferSize[i] = fb->len;
+      streamFillMs[i] = millis(); // RC mod: age of buffered frame for websocket video
       xSemaphoreGive(frameSemaphore[i]); // signal frame ready for stream
     }
   }
