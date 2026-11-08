@@ -640,9 +640,7 @@ void currentStackUsage() {
 
 static void stopRC() {
   // stop RC movement if connection lost
-#if INCLUDE_PERIPH
-  setLightsRC(false);
-#endif
+  // RC mod: lights are left as they are, so they stay in step with the lights button on the page
 #if INCLUDE_PERIPH
   if (servoSteerPin > 0) previewSteer(steerCenter); // RC mod: centre steering too
 #endif

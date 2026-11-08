@@ -1824,7 +1824,7 @@
       'use strict'
 
       let refreshInterval = 5000;
-      let heartbeatInterval = 5000;
+      let heartbeatInterval = 1000; // RC mod: send keepalive every second
       let imgSize = { width: 0, height: 0 };
       let fitSize = { width: 0, height: 0 };
       let cameraModel = "OV2640";
@@ -1884,7 +1884,14 @@
           else if (key == "refreshLog") getLog();
           else if (key == "logType") { logType = value; sendControl(key, value); return; }
           else if (key == "refreshVal") refreshInterval = value * 1000;
-          else if (key == "heartbeatRC") heartbeatInterval = value * 1000;
+          else if (key == "heartbeatRC") {
+            // RC mod: keepalive at least twice per firmware timeout, restart timer if already running
+            const newInterval = Math.max(500, Math.min(1000, value * 500));
+            if (newInterval != heartbeatInterval) {
+              heartbeatInterval = newInterval;
+              if (hbTimer) { clearInterval(hbTimer); hbTimer = null; heartbeat(); }
+            }
+          }
           else if (key == "clockUTC") { appClock = value; checkTime(value); }
           else if (key == "streaming") getConfig("012345678");
           else if (key == "motion") getConfig("01");
@@ -2441,6 +2448,7 @@
           doLoadStatus = false;
           rcSend('D', Number(servoCenter), true); // centre steering (servo may be left at an end point after RC Config)
           rcSend('M', 0, true);
+          if (!rcRepeatTimer) rcRepeatTimer = setInterval(rcRepeat, 500);
         } else stopRC();
       }
 
@@ -2457,6 +2465,7 @@
       function stopRC() {
         if (RCmode) {
           RCmode = false;
+          if (rcRepeatTimer) { clearInterval(rcRepeatTimer); rcRepeatTimer = null; }
           resetButton('RCcontrols');
           joyResetAll();
           setLightsBtn(false);
@@ -2509,6 +2518,7 @@
       /*---- rate limited sending of joystick values ----*/
       // only latest value per command is sent, at most once every waitTime ms;
       // return to centre (0) is always sent immediately
+      let rcRepeatTimer = null;
       const rcPending = {D: null, M: null};
       const rcLastSent = {D: null, M: null};
       let rcTimer = null;
@@ -2532,6 +2542,14 @@
             wsAuxSend(cmd + val, wsInd);
           }
         }
+      }
+
+      function rcRepeat() {
+        // while a joystick is held off centre, resend its value so the car
+        // resumes straight away if the connection dropped for a moment
+        if (!RCmode) return;
+        if (rcLastSent.M !== null && rcLastSent.M != 0) sendWsMsg('M' + rcLastSent.M, wsInd);
+        if (rcLastSent.D !== null && rcLastSent.D != Number(servoCenter)) sendWsMsg('D' + rcLastSent.D, wsInd);
       }
 
       /*---- joystick widget ----*/

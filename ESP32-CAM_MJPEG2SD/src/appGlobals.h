@@ -28,7 +28,7 @@
 
 #define APP_VER "10.9.6"
 #define CFG_VER 40 // to determine if newer data files need to be loaded
-#define WEB_ETAG "40-rc3" // RC mod: browser cache tag for web pages, change when .htm/.js modified
+#define WEB_ETAG "40-rc4" // RC mod: browser cache tag for web pages, change when .htm/.js modified
 
 #define DEBUG_MEM false // leave as false
 #define FLUSH_DELAY 0 // for debugging crashes
