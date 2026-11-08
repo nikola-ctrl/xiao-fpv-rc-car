@@ -27,6 +27,7 @@
 #include "camera_pins.h"
 
 #define APP_VER "10.9.6"
+#define NO_WIFI_SLEEP // RC mod: disable WiFi power saving for lower video / control latency
 #define CFG_VER 40 // to determine if newer data files need to be loaded
 #define WEB_ETAG "40-rc4" // RC mod: browser cache tag for web pages, change when .htm/.js modified
 
