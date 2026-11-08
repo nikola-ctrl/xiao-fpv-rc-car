@@ -901,7 +901,7 @@ sdLog~0~99~~na
 xclkMhz~20~98~~na
 ae_level~-2~98~~na
 aec~1~98~~na
-aec2~1~98~~na
+aec2~0~98~~na
 aec_value~204~98~~na
 agc~1~98~~na
 agc_gain~0~98~~na

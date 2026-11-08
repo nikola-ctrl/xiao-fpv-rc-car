@@ -3,6 +3,7 @@
 // s60sc 2022 - 2023
 
 #include "appGlobals.h"
+#include <lwip/sockets.h> // RC mod: TCP_NODELAY
 
 #define MAX_HANDLERS 12
 
@@ -496,7 +497,13 @@ static esp_err_t wsHandler(httpd_req_t *req) {
     if (fdWs < 0) {
       LOG_WRN("failed to get socket number");
       ret = ESP_FAIL;
-    } else LOG_VRB("Websocket connection: %d", fdWs);
+    } else {
+      // RC mod: send each video frame / message at once, without waiting for the
+      // browser to acknowledge earlier data (Nagle), lowers live view latency
+      int noDelay = 1;
+      setsockopt(fdWs, IPPROTO_TCP, TCP_NODELAY, &noDelay, sizeof(noDelay));
+      LOG_VRB("Websocket connection: %d", fdWs);
+    }
   } else {
     // data content received
     httpd_ws_frame_t wsPkt;
