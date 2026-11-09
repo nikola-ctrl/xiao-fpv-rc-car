@@ -430,6 +430,19 @@ static esp_err_t sendCrossOriginHeader(httpd_req_t *req) {
   return ESP_OK;
 }
 
+// RC mod: websocket sends come from several tasks (log, status, video). A large video frame
+// is written in pieces, so without a lock another message could be inserted in the middle
+// of it and break the websocket stream.
+static SemaphoreHandle_t wsSendMutex = NULL;
+
+static esp_err_t wsSendLocked(httpd_ws_frame_t* wsPkt) {
+  if (wsSendMutex == NULL) return httpd_ws_send_frame_async(httpServer, fdWs, wsPkt);
+  xSemaphoreTake(wsSendMutex, portMAX_DELAY);
+  esp_err_t ret = httpd_ws_send_frame_async(httpServer, fdWs, wsPkt);
+  xSemaphoreGive(wsSendMutex);
+  return ret;
+}
+
 static bool checkWsSocketStatus() {
   // Check if connection is active and is a WebSocket
   return (httpd_ws_get_fd_info(httpServer, fdWs) == HTTPD_WS_CLIENT_WEBSOCKET) ? true : false;
@@ -444,7 +457,7 @@ bool wsAsyncSendText(const char* wsData) {
     wsPkt.len = strlen(wsData);
     wsPkt.type = HTTPD_WS_TYPE_TEXT;
     wsPkt.final = true;
-    esp_err_t ret = httpd_ws_send_frame_async(httpServer, fdWs, &wsPkt);
+    esp_err_t ret = wsSendLocked(&wsPkt);
     ////if (ret != ESP_OK) LOG_WRN("websocket send failed with %s", esp_err_to_name(ret));
     return ret == ESP_OK ? true : false;
   } 
@@ -471,8 +484,7 @@ bool wsAsyncSendBinary(uint8_t* data, size_t len) {
     wsPkt.type = HTTPD_WS_TYPE_BINARY;
     wsPkt.payload = data;
     wsPkt.len = len;
-    wsPkt.final = true; // RC mod: complete message, memset above had left it as an unfinished fragment
-    esp_err_t ret = httpd_ws_send_frame_async(httpServer, fdWs, &wsPkt);
+    esp_err_t ret = wsSendLocked(&wsPkt);
     if (ret != ESP_OK) LOG_WRN("websocket send failed with %s", esp_err_to_name(ret));
     return ret == ESP_OK;
   } // else ignore
@@ -554,6 +566,7 @@ static esp_err_t customOrNotFoundHandler(httpd_req_t *req, httpd_err_code_t err)
 
 bool startWebServer() {
   esp_err_t res = ESP_FAIL;
+  if (wsSendMutex == NULL) wsSendMutex = xSemaphoreCreateMutex(); // RC mod
   if (!chunk) chunk = psramFound() ? (byte*)ps_malloc(CHUNKSIZE) : (byte*)malloc(CHUNKSIZE);
   if (httpServer) {
     httpd_stop(httpServer);

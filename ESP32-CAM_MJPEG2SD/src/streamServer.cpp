@@ -267,10 +267,14 @@ static TaskHandle_t wsVideoHandle = NULL;
 
 void wsVideoControl(bool on) {
   // browser asks to start ('V1') or stop ('V0') websocket video
+  if (on && wsVideoHandle == NULL) {
+    LOG_WRN("Websocket video task not running");
+    return;
+  }
   wsVideoOn = on;
   wsVideoAcked = true;
   if (wsVideoHandle != NULL) xTaskNotifyGive(wsVideoHandle);
-  LOG_VRB("Websocket video %s", on ? "on" : "off");
+  LOG_INF("Websocket video %s", on ? "on" : "off");
 }
 
 void wsVideoAck() {
@@ -280,6 +284,7 @@ void wsVideoAck() {
 
 static void wsVideoTask(void* p) {
   uint32_t lastSend = 0;
+  uint32_t sentFrames = 0;
   while (true) {
     if (!wsVideoOn) {
       ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200));
@@ -304,7 +309,10 @@ static void wsVideoTask(void* p) {
     lastSend = millis();
     bool ok = wsAsyncSendBinary(streamBuffer[0], streamBufferSize[0]);
     streamBufferSize[0] = 0; // let capture task refill
-    if (!ok) wsVideoOn = false; // browser gone, it restarts video when it reconnects
+    if (!ok) {
+      LOG_WRN("Websocket video frame not sent, video stopped");
+      wsVideoOn = false; // browser gone, it restarts video when it reconnects
+    } else if (++sentFrames == 1) LOG_INF("Websocket video: first frame sent");
   }
 }
 

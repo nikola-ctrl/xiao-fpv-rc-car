@@ -2783,19 +2783,33 @@
       let wsVideoUrl = null;
       let wsVideoLastFrame = 0;
       let wsVideoWatchdog = null;
+      let wsVideoStart = 0;
+      let wsVideoFrames = 0;
 
       function startWsVideo() {
         wsVideoActive = true;
         wsVideoPending = null;
-        wsVideoLastFrame = Date.now();
+        wsVideoFrames = 0;
+        wsVideoStart = wsVideoLastFrame = Date.now();
         sendWsMsg('V1', 0);
         if (!wsVideoWatchdog) wsVideoWatchdog = setInterval(() => {
-          // restart video if frames stopped, eg after websocket reconnect
-          if (wsVideoActive && Date.now() - wsVideoLastFrame > 1500) {
+          if (!wsVideoActive) return;
+          if (!wsVideoFrames && Date.now() - wsVideoStart > 3000) {
+            // no frame at all over websocket: fall back to the standard http stream
+            useHttpStream();
+          } else if (Date.now() - wsVideoLastFrame > 1500) {
+            // frames stopped, eg after websocket reconnect: ask again
             wsVideoLastFrame = Date.now();
             sendWsMsg('V1', 0);
           }
         }, 500);
+      }
+
+      async function useHttpStream() {
+        showLog('RC: no video over websocket, using standard stream');
+        console.warn('RC: no video over websocket, using standard stream');
+        stopWsVideo();
+        if (await checkTask('/sustain?stream=0')) view.src = webServer + '/sustain?stream=0';
       }
 
       function stopWsVideo() {
@@ -2811,6 +2825,7 @@
       function wsVideoFrame(buf) {
         if (!wsVideoActive) return;
         wsVideoLastFrame = Date.now();
+        if (++wsVideoFrames == 1) showLog('RC: websocket video started');
         // confirm at once so the camera can send the next frame while this one is decoded
         if (wsSkt[0] && wsSkt[0].readyState === WebSocket.OPEN) wsSkt[0].send('A');
         if (wsVideoBusy) { wsVideoPending = buf; return; } // keep only the newest
@@ -2818,13 +2833,20 @@
       }
 
       function showWsVideoFrame(buf) {
+        // decode off screen first, then swap into the view, so the view never shows an empty image
         wsVideoBusy = true;
         const url = URL.createObjectURL(new Blob([buf], {type: 'image/jpeg'}));
-        const prevUrl = wsVideoUrl;
-        wsVideoUrl = url;
-        view.src = url;
-        view.decode().catch(() => {}).finally(() => {
-          if (prevUrl) URL.revokeObjectURL(prevUrl);
+        const img = new Image();
+        img.src = url;
+        img.decode().then(() => {
+          if (!wsVideoActive) { URL.revokeObjectURL(url); return; }
+          const prevUrl = wsVideoUrl;
+          wsVideoUrl = url;
+          view.src = url;
+          if (prevUrl) setTimeout(() => URL.revokeObjectURL(prevUrl), 100);
+        }).catch(() => {
+          URL.revokeObjectURL(url); // broken frame: skip
+        }).finally(() => {
           wsVideoBusy = false;
           if (wsVideoPending && wsVideoActive) {
             const next = wsVideoPending;
