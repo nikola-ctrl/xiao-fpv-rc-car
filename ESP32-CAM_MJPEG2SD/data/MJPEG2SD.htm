@@ -2785,6 +2785,25 @@
       let wsVideoWatchdog = null;
       let wsVideoStart = 0;
       let wsVideoFrames = 0;
+      const wsStat = {mark: 0, frames: 0, bytes: 0, maxGap: 0, decode: 0, last: 0};
+
+      function wsVideoStats(len) {
+        // diagnostics in Show Log every 5 s
+        const now = performance.now();
+        if (!wsStat.mark) wsStat.mark = now;
+        if (wsStat.last) wsStat.maxGap = Math.max(wsStat.maxGap, now - wsStat.last);
+        wsStat.last = now;
+        wsStat.frames++;
+        wsStat.bytes += len;
+        if (now - wsStat.mark >= 5000) {
+          const s = (now - wsStat.mark) / 1000;
+          showLog('RC page: ' + Math.round(wsStat.frames / s) + ' fps, ' + Math.round(wsStat.bytes / wsStat.frames / 1024) +
+            ' KB/frame, avg gap ' + Math.round(s * 1000 / wsStat.frames) + ' ms, max gap ' + Math.round(wsStat.maxGap) +
+            ' ms, decode ' + Math.round(wsStat.decode / wsStat.frames) + ' ms');
+          wsStat.mark = now;
+          wsStat.frames = wsStat.bytes = wsStat.maxGap = wsStat.decode = 0;
+        }
+      }
 
       function startWsVideo() {
         wsVideoActive = true;
@@ -2826,6 +2845,7 @@
         if (!wsVideoActive) return;
         wsVideoLastFrame = Date.now();
         if (++wsVideoFrames == 1) showLog('RC: websocket video started');
+        wsVideoStats(buf.byteLength);
         // confirm at once so the camera can send the next frame while this one is decoded
         if (wsSkt[0] && wsSkt[0].readyState === WebSocket.OPEN) wsSkt[0].send('A');
         if (wsVideoBusy) { wsVideoPending = buf; return; } // keep only the newest
@@ -2837,8 +2857,10 @@
         wsVideoBusy = true;
         const url = URL.createObjectURL(new Blob([buf], {type: 'image/jpeg'}));
         const img = new Image();
+        const t0 = performance.now();
         img.src = url;
         img.decode().then(() => {
+          wsStat.decode += performance.now() - t0;
           if (!wsVideoActive) { URL.revokeObjectURL(url); return; }
           const prevUrl = wsVideoUrl;
           wsVideoUrl = url;

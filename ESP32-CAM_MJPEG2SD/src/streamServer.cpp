@@ -23,6 +23,7 @@ bool streamSrt = false;
 static bool isStreaming[MAX_STREAMS] = {false};
 size_t streamBufferSize[MAX_STREAMS] = {0};
 uint32_t streamFillMs[MAX_STREAMS] = {0}; // RC mod: when frame was put in stream buffer
+uint32_t streamCapAgeMs[MAX_STREAMS] = {0}; // RC mod: frame age (since capture start) when put in stream buffer
 byte* streamBuffer[MAX_STREAMS] = {NULL}; // buffer for stream frame
 static char variable[FILE_NAME_LEN]; 
 static char value[FILE_NAME_LEN];
@@ -285,6 +286,8 @@ void wsVideoAck() {
 static void wsVideoTask(void* p) {
   uint32_t lastSend = 0;
   uint32_t sentFrames = 0;
+  // diagnostics, logged every 5 s
+  uint32_t statMark = millis(), statFrames = 0, statBytes = 0, statAge = 0, statSend = 0;
   while (true) {
     if (!wsVideoOn) {
       ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200));
@@ -307,8 +310,23 @@ static void wsVideoTask(void* p) {
     if (!wsVideoOn || !streamBufferSize[0]) continue;
     wsVideoAcked = false;
     lastSend = millis();
+    uint32_t frameAge = streamCapAgeMs[0] + (lastSend - streamFillMs[0]);
+    size_t frameLen = streamBufferSize[0];
     bool ok = wsAsyncSendBinary(streamBuffer[0], streamBufferSize[0]);
+    uint32_t sendMs = millis() - lastSend;
     streamBufferSize[0] = 0; // let capture task refill
+    if (ok) {
+      statFrames++;
+      statBytes += frameLen;
+      statAge += frameAge;
+      statSend += sendMs;
+    }
+    if (millis() - statMark >= 5000 && statFrames) {
+      LOG_INF("WS video: %u fps, %u KB/frame, frame age at send %u ms, send time %u ms",
+        statFrames * 1000 / (millis() - statMark), statBytes / statFrames / 1024, statAge / statFrames, statSend / statFrames);
+      statMark = millis();
+      statFrames = statBytes = statAge = statSend = 0;
+    }
     if (!ok) {
       LOG_WRN("Websocket video frame not sent, video stopped");
       wsVideoOn = false; // browser gone, it restarts video when it reconnects

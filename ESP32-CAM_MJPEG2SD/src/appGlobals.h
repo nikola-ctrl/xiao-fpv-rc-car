@@ -29,7 +29,7 @@
 #define APP_VER "10.9.6"
 #define NO_WIFI_SLEEP // RC mod: disable WiFi power saving for lower video / control latency
 #define CFG_VER 40 // to determine if newer data files need to be loaded
-#define WEB_ETAG "40-rc8" // RC mod: browser cache tag for web pages, change when .htm/.js modified
+#define WEB_ETAG "40-rc9" // RC mod: browser cache tag for web pages, change when .htm/.js modified
 
 #define DEBUG_MEM false // leave as false
 #define FLUSH_DELAY 0 // for debugging crashes
@@ -310,6 +310,7 @@ extern const uint8_t wbBuf[]; // 01wb
 extern byte* streamBuffer[]; // buffer for stream frame
 extern size_t streamBufferSize[];
 extern uint32_t streamFillMs[]; // RC mod
+extern uint32_t streamCapAgeMs[]; // RC mod
 void wsVideoControl(bool on);    // RC mod: live view over websocket
 void wsVideoAck();               // RC mod: browser received frame
 extern uint8_t* motionJpeg;

@@ -422,6 +422,7 @@ static boolean processFrame() {
       memcpy(streamBuffer[i], fb->buf, fb->len);
       streamBufferSize[i] = fb->len;
       streamFillMs[i] = millis(); // RC mod: age of buffered frame for websocket video
+      streamCapAgeMs[i] = (uint32_t)((esp_timer_get_time() - ((int64_t)fb->timestamp.tv_sec * 1000000LL + fb->timestamp.tv_usec)) / 1000); // RC mod
       xSemaphoreGive(frameSemaphore[i]); // signal frame ready for stream
     }
   }
