@@ -443,6 +443,30 @@ static esp_err_t wsSendLocked(httpd_ws_frame_t* wsPkt) {
   return ret;
 }
 
+static volatile int wsRxFd = -1; // RC mod: socket of last websocket message received
+
+int wsLastRxSocket() {
+  return wsRxFd;
+}
+
+bool wsSendBinaryTo(int fd, uint8_t* data, size_t len) {
+  // RC mod: send binary message to a given websocket client (the one that asked for video)
+  if (fd < 0 || data == NULL || len == 0) return false;
+  httpd_ws_frame_t wsPkt;
+  memset(&wsPkt, 0, sizeof(httpd_ws_frame_t));
+  wsPkt.type = HTTPD_WS_TYPE_BINARY;
+  wsPkt.payload = data;
+  wsPkt.len = len;
+  wsPkt.final = true;
+  esp_err_t ret;
+  if (wsSendMutex != NULL) xSemaphoreTake(wsSendMutex, portMAX_DELAY);
+  ret = httpd_ws_send_frame_async(httpServer, fd, &wsPkt);
+  if (wsSendMutex != NULL) xSemaphoreGive(wsSendMutex);
+  if (ret != ESP_OK) LOG_WRN("Websocket video send to socket %d failed: %s, socket state %d (2=websocket), log socket %d",
+    fd, esp_err_to_name(ret), (int)httpd_ws_get_fd_info(httpServer, fd), fdWs);
+  return ret == ESP_OK;
+}
+
 static bool checkWsSocketStatus() {
   // Check if connection is active and is a WebSocket
   return (httpd_ws_get_fd_info(httpServer, fdWs) == HTTPD_WS_CLIENT_WEBSOCKET) ? true : false;
@@ -525,6 +549,7 @@ static esp_err_t wsHandler(httpd_req_t *req) {
     wsPkt.payload = wsMsg;
     ret = httpd_ws_recv_frame(req, &wsPkt, MAX_PAYLOAD_LEN); 
     if (ret == ESP_OK) {
+      wsRxFd = httpd_req_to_sockfd(req); // RC mod: reply video to the client that asked
       if (wsPkt.len >= MAX_PAYLOAD_LEN) LOG_ERR("websocket payload too long %d", wsPkt.len);
       wsMsg[wsPkt.len] = 0; // terminator
       if (wsPkt.type == HTTPD_WS_TYPE_BINARY && wsPkt.len) appSpecificWsBinHandler(wsMsg, wsPkt.len);

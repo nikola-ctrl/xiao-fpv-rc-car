@@ -29,7 +29,7 @@
 #define APP_VER "10.9.6"
 #define NO_WIFI_SLEEP // RC mod: disable WiFi power saving for lower video / control latency
 #define CFG_VER 40 // to determine if newer data files need to be loaded
-#define WEB_ETAG "40-rc9" // RC mod: browser cache tag for web pages, change when .htm/.js modified
+#define WEB_ETAG "40-rc10" // RC mod: browser cache tag for web pages, change when .htm/.js modified
 
 #define DEBUG_MEM false // leave as false
 #define FLUSH_DELAY 0 // for debugging crashes
@@ -58,7 +58,7 @@
 #define FILE_NAME_LEN 64
 #define IN_FILE_NAME_LEN (FILE_NAME_LEN * 2)
 #define JSON_BUFF_LEN (32 * 1024) // set big enough to hold all file names in a folder
-#define MAX_CONFIGS 220 // must be > number of entries in configs.txt
+#define MAX_CONFIGS 260 // must be > number of entries in configs.txt. RC mod: was 220, RC entries added
 #define MIN_RAM 8 // min object size stored in ram instead of PSRAM default is 4096
 #define MAX_RAM 4096 // max object size stored in ram instead of PSRAM default is 4096
 #define TLS_HEAP (64 * 1024) // min free heap for TLS session
@@ -313,6 +313,8 @@ extern uint32_t streamFillMs[]; // RC mod
 extern uint32_t streamCapAgeMs[]; // RC mod
 void wsVideoControl(bool on);    // RC mod: live view over websocket
 void wsVideoAck();               // RC mod: browser received frame
+int wsLastRxSocket();            // RC mod: socket of last websocket message received
+bool wsSendBinaryTo(int fd, uint8_t* data, size_t len); // RC mod
 extern uint8_t* motionJpeg;
 extern size_t motionJpegLen;
 extern uint8_t* audioBuffer;

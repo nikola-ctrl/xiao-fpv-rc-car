@@ -264,6 +264,7 @@ static void sustainTask(void* p) {
 
 static volatile bool wsVideoOn = false;
 static volatile bool wsVideoAcked = true;
+static volatile int wsVideoFd = -1; // socket of the browser that asked for video
 static TaskHandle_t wsVideoHandle = NULL;
 
 void wsVideoControl(bool on) {
@@ -272,10 +273,11 @@ void wsVideoControl(bool on) {
     LOG_WRN("Websocket video task not running");
     return;
   }
+  if (on) wsVideoFd = wsLastRxSocket(); // called while handling the 'V1' message
   wsVideoOn = on;
   wsVideoAcked = true;
   if (wsVideoHandle != NULL) xTaskNotifyGive(wsVideoHandle);
-  LOG_INF("Websocket video %s", on ? "on" : "off");
+  LOG_INF("Websocket video %s (socket %d)", on ? "on" : "off", wsVideoFd);
 }
 
 void wsVideoAck() {
@@ -312,7 +314,7 @@ static void wsVideoTask(void* p) {
     lastSend = millis();
     uint32_t frameAge = streamCapAgeMs[0] + (lastSend - streamFillMs[0]);
     size_t frameLen = streamBufferSize[0];
-    bool ok = wsAsyncSendBinary(streamBuffer[0], streamBufferSize[0]);
+    bool ok = wsSendBinaryTo(wsVideoFd, streamBuffer[0], streamBufferSize[0]);
     uint32_t sendMs = millis() - lastSend;
     streamBufferSize[0] = 0; // let capture task refill
     if (ok) {
