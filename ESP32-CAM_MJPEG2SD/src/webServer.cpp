@@ -471,6 +471,7 @@ bool wsAsyncSendBinary(uint8_t* data, size_t len) {
     wsPkt.type = HTTPD_WS_TYPE_BINARY;
     wsPkt.payload = data;
     wsPkt.len = len;
+    wsPkt.final = true; // RC mod: complete message, memset above had left it as an unfinished fragment
     esp_err_t ret = httpd_ws_send_frame_async(httpServer, fdWs, &wsPkt);
     if (ret != ESP_OK) LOG_WRN("websocket send failed with %s", esp_err_to_name(ret));
     return ret == ESP_OK;

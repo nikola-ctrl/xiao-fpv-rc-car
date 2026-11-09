@@ -933,8 +933,8 @@
         position: relative;
         width: var(--btnSize);
         height: var(--btnSize);
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 36px;
+        min-height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -2454,6 +2454,7 @@
           // start rc control
           joyResetAll();
           show($('#RCdisplay'));
+          fitJoysticks();
           RCmode = true;
           await sleep(50); // allow websocket to start
           doLoadStatus = false;
@@ -2670,7 +2671,25 @@
         $('#joySwap').classList.toggle('RCswapped', swapped);
       }
 
+      function fitJoysticks() {
+        // size joysticks to the video area: large, but leaving room for the centre buttons
+        const disp = $('#RCdisplay');
+        const r = disp.parentElement.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const m = Math.min(r.width, r.height);
+        const btn = Math.max(36, Math.min(72, m * 0.12));
+        const gap = Math.max(8, Math.min(24, m * 0.03));
+        let joy = Math.min(340, r.height * 0.56, (r.width - 3 * btn - 3.6 * gap - 24) / 2);
+        joy = Math.max(70, joy);
+        disp.style.setProperty('--joySize', Math.floor(joy) + 'px');
+        disp.style.setProperty('--btnSize', Math.floor(btn) + 'px');
+        disp.style.setProperty('--joyGap', Math.floor(gap) + 'px');
+      }
+
       function initJoysticks() {
+        fitJoysticks();
+        window.addEventListener('resize', fitJoysticks);
+        if (window.ResizeObserver) new ResizeObserver(fitJoysticks).observe($('#RCdisplay').parentElement);
         joySteer = makeJoystick('joySteer', 'x', onSteer);
         joyMotor = makeJoystick('joyMotor', 'y', onThrottle);
         // swap joystick sides, choice remembered in this browser
