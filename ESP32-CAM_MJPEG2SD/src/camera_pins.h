@@ -246,6 +246,10 @@
 #define PCLK_GPIO_NUM     13
 
 #define LED_GPIO_NUM 21
+// RC mod: onboard PDM microphone of XIAO ESP32S3 Sense (CLK 42, DATA 41), applied at startup
+#define I2S_SD            41
+#define I2S_WS            42
+#define I2S_SCK           -1
 // Define SD Pins
 #define SD_MMC_CLK 7 
 #define SD_MMC_CMD 9

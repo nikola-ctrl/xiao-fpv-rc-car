@@ -469,7 +469,13 @@ bool wsSendBinaryTo(int fd, uint8_t* data, size_t len) {
 
 static bool checkWsSocketStatus() {
   // Check if connection is active and is a WebSocket
-  return (httpd_ws_get_fd_info(httpServer, fdWs) == HTTPD_WS_CLIENT_WEBSOCKET) ? true : false;
+  if (httpd_ws_get_fd_info(httpServer, fdWs) == HTTPD_WS_CLIENT_WEBSOCKET) return true;
+  // RC mod: stored socket not valid, recover it from the last websocket message received
+  if (wsRxFd >= 0 && httpd_ws_get_fd_info(httpServer, wsRxFd) == HTTPD_WS_CLIENT_WEBSOCKET) {
+    fdWs = wsRxFd;
+    return true;
+  }
+  return false;
 }
 
 bool wsAsyncSendText(const char* wsData) {

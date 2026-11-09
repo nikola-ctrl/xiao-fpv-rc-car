@@ -922,7 +922,7 @@ hmirror~0~98~~na
 lampLevel~0~98~~na
 lenc~1~98~~na
 lswitch~10~98~~na
-micGain~0~98~~na
+micGain~5~98~~na
 ampVol~0~98~~na
 minf~5~98~~na
 motionVal~8~98~~na
@@ -992,10 +992,10 @@ lampPin~~3~N~Pin used for Lamp
 servoPanPin~~6~N~Pin used for Pan Servo
 servoTiltPin~~6~N~Pin used for Tilt Servo
 ds18b20Pin~~3~N~Pin used for DS18B20 temperature sensor
-AudActive~0~3~C~Show audio configuration
+AudActive~1~3~C~Show audio configuration
 micSckPin~-1~7~N~Microphone I2S SCK pin
-micSWsPin~-1~7~N~Microphone I2S WS, PDM CLK pin
-micSdPin~-1~7~N~Microphone I2S SD, PDM DAT pin
+micSWsPin~42~7~N~Microphone I2S WS, PDM CLK pin
+micSdPin~41~7~N~Microphone I2S SD, PDM DAT pin
 mampBckIo~-1~7~N~Amplifier I2S BCLK (SCK) pin
 mampSwsIo~-1~7~N~Amplifier I2S LRCLK (WS) pin
 mampSdIo~-1~7~N~Amplifier I2S DIN pin
